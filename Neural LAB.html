@@ -1,0 +1,1724 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Neural LAB AI Evolution Laboratory v2</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;700&family=Orbitron:wght@400;700;900&display=swap');
+
+:root{
+  --bg0:#020617;
+  --bg1:#0a1628;
+  --bg2:#0f172a;
+  --bg3:#111827;
+  --accent:#00d4ff;
+  --accent2:#7c3aed;
+  --accent3:#10b981;
+  --warn:#f59e0b;
+  --danger:#ef4444;
+  --text:#e2e8f0;
+  --text2:#94a3b8;
+  --border:#1e293b;
+  /* 字體基準 — 比原版放大約 20% */
+  --fxs:13px;
+  --fsm:15px;
+  --fmd:17px;
+  --flg:20px;
+}
+
+*{margin:0;padding:0;box-sizing:border-box;font-family:'JetBrains Mono',monospace;}
+
+body{background:var(--bg0);color:var(--text);overflow:hidden;height:100vh;}
+
+/* ════════════════════════════════
+   DESKTOP：三欄並排
+   ════════════════════════════════ */
+#app{display:grid;grid-template-columns:300px 1fr 320px;height:100vh;}
+
+.panel{
+  background:var(--bg2);padding:14px;
+  overflow-y:auto;overflow-x:hidden;
+  border-right:1px solid var(--border);
+}
+.right-panel{border-right:none;border-left:1px solid var(--border);}
+
+/* 隱藏手機底部導覽（桌面版不存在） */
+#mobileNav{display:none;}
+#mobileTabBar{display:none;}
+
+/* ── SECTION ── */
+.section{
+  background:var(--bg3);border-radius:12px;
+  padding:14px;margin-bottom:16px;border:1px solid var(--border);
+}
+.section h3{
+  margin-bottom:12px;color:var(--accent);
+  font-family:'Orbitron',sans-serif;
+  font-size:var(--fxs);letter-spacing:2px;text-transform:uppercase;
+}
+
+label{
+  display:block;margin-top:10px;margin-bottom:4px;
+  font-size:var(--fsm);color:var(--text2);
+}
+
+input,select{
+  width:100%;padding:11px 12px;border:1px solid var(--border);
+  border-radius:8px;background:var(--bg0);color:var(--text);
+  font-family:'JetBrains Mono',monospace;font-size:var(--fsm);
+  outline:none;transition:border .2s;
+  /* 防止 iOS 自動放大 */
+  -webkit-text-size-adjust:100%;
+}
+input:focus,select:focus{border-color:var(--accent);}
+
+button{
+  width:100%;padding:13px;border:none;border-radius:9px;
+  background:var(--accent2);color:white;cursor:pointer;
+  margin-top:10px;font-family:'Orbitron',sans-serif;
+  font-size:var(--fxs);letter-spacing:1px;
+  transition:all .15s;-webkit-tap-highlight-color:transparent;
+}
+button:hover{filter:brightness(1.2);}
+button:active{filter:brightness(0.9);transform:scale(.98);}
+
+.btn-primary{background:linear-gradient(135deg,var(--accent2),#4f46e5);}
+.btn-success{background:linear-gradient(135deg,var(--accent3),#059669);}
+.btn-warn{background:linear-gradient(135deg,var(--warn),#d97706);}
+.btn-danger{background:linear-gradient(135deg,var(--danger),#dc2626);}
+.btn-info{background:linear-gradient(135deg,var(--accent),#0284c7);}
+.btn-secondary{background:linear-gradient(135deg,#334155,#1e293b);}
+
+/* ── LAYER ITEMS ── */
+.layer-item{display:flex;gap:8px;margin-top:10px;align-items:center;}
+.layer-item input{flex:1;}
+.layer-item button{width:44px;margin:0;padding:10px;background:var(--danger);font-size:var(--fsm);}
+.layer-badge{
+  font-size:var(--fxs);color:var(--text2);
+  padding:3px 8px;background:var(--bg0);border-radius:5px;white-space:nowrap;
+}
+
+/* ── CENTER ── */
+#center{
+  position:relative;
+  background:radial-gradient(ellipse at center,#0f172a 0%,var(--bg0) 100%);
+}
+#networkCanvas{width:100%;height:100%;display:block;}
+
+#center::before{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background-image:radial-gradient(circle,#1e293b 1px,transparent 1px);
+  background-size:30px 30px;opacity:.4;
+}
+
+/* ── TOOLBAR ── */
+#toolbar{
+  position:absolute;top:10px;left:50%;transform:translateX(-50%);
+  display:flex;gap:6px;z-index:10;flex-wrap:wrap;justify-content:center;
+  background:rgba(15,23,42,.88);backdrop-filter:blur(8px);
+  padding:8px 14px;border-radius:30px;border:1px solid var(--border);
+  max-width:calc(100% - 20px);
+}
+#toolbar button{
+  width:auto;padding:8px 14px;margin:0;
+  font-size:var(--fxs);white-space:nowrap;
+}
+
+/* ── STATUS BAR ── */
+#statusBar{
+  position:absolute;bottom:12px;left:50%;transform:translateX(-50%);
+  background:rgba(15,23,42,.92);backdrop-filter:blur(8px);
+  padding:8px 22px;border-radius:22px;border:1px solid var(--border);
+  font-size:var(--fsm);color:var(--accent);letter-spacing:1px;
+  white-space:nowrap;max-width:calc(100% - 20px);
+}
+
+/* ── STATS ── */
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;}
+.stat{background:var(--bg0);border-radius:8px;padding:10px 12px;}
+.stat .label{color:var(--text2);font-size:var(--fxs);margin-bottom:4px;}
+.stat .value{color:var(--accent);font-family:'Orbitron',sans-serif;font-size:var(--fmd);}
+
+/* ── INFERENCE ── */
+.inference-row{display:flex;gap:8px;margin-top:10px;}
+.inference-row input{flex:1;}
+.inference-result{
+  margin-top:12px;padding:12px;background:var(--bg0);
+  border-radius:9px;font-size:var(--fsm);min-height:44px;
+  border:1px solid var(--border);line-height:1.8;
+}
+.result-ok{color:var(--accent3);}
+.result-err{color:var(--danger);}
+
+/* ── EXPORT BUTTONS ── */
+.export-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+
+/* ── PROGRESS ── */
+#trainingProgress{
+  width:100%;height:6px;background:var(--border);
+  border-radius:3px;margin-top:10px;overflow:hidden;
+}
+#progressBar{height:100%;background:linear-gradient(90deg,var(--accent2),var(--accent));width:0%;transition:width .3s;}
+
+/* ── LEGEND ── */
+.legend{font-size:var(--fsm);line-height:2.2;color:var(--text2);}
+.dot{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:7px;vertical-align:middle;}
+
+/* ── TOOLTIP ── */
+#tooltip{
+  position:absolute;pointer-events:none;background:rgba(15,23,42,.95);
+  border:1px solid var(--accent);border-radius:9px;padding:10px 14px;
+  font-size:var(--fsm);display:none;z-index:50;
+  box-shadow:0 0 20px rgba(0,212,255,.2);
+}
+
+/* ── MODAL ── */
+.modal-overlay{
+  display:none;position:fixed;inset:0;background:rgba(2,6,23,.88);
+  z-index:200;align-items:center;justify-content:center;
+  backdrop-filter:blur(6px);padding:10px;
+}
+.modal-overlay.show{display:flex;}
+.modal{
+  background:var(--bg2);border:1px solid var(--border);border-radius:16px;
+  padding:22px;width:520px;max-width:100%;
+  max-height:90vh;overflow-y:auto;
+}
+.modal h2{
+  color:var(--accent);font-family:'Orbitron',sans-serif;
+  font-size:var(--fsm);letter-spacing:2px;margin-bottom:16px;
+}
+.modal p{font-size:var(--fsm);color:var(--text2);margin-bottom:10px;line-height:1.6;}
+.modal textarea{
+  width:100%;height:180px;background:var(--bg0);border:1px solid var(--border);
+  color:var(--text);border-radius:9px;padding:12px;font-size:var(--fsm);
+  font-family:'JetBrains Mono',monospace;resize:vertical;outline:none;
+}
+.modal-btns{display:flex;gap:10px;margin-top:14px;}
+.modal-btns button{margin:0;padding:13px;}
+
+/* ── PULSE ── */
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+.training-badge{
+  display:inline-block;width:10px;height:10px;background:var(--accent3);
+  border-radius:50%;margin-right:7px;animation:pulse 1s infinite;
+}
+.training-badge.stopped{background:var(--text2);animation:none;}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar{width:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+
+/* ── DRAG DROP ── */
+#dropZone{
+  border:2px dashed var(--border);border-radius:12px;
+  padding:20px 12px;text-align:center;cursor:pointer;
+  transition:all .25s;margin-top:12px;position:relative;
+  background:var(--bg0);
+}
+#dropZone:hover,#dropZone.drag-over{
+  border-color:var(--accent);background:rgba(0,212,255,.05);
+  box-shadow:0 0 18px rgba(0,212,255,.18);
+}
+#dropZone .drop-icon{font-size:28px;margin-bottom:6px;}
+#dropZone .drop-label{font-size:var(--fsm);color:var(--text2);line-height:1.7;}
+#dropZone .drop-label b{color:var(--accent);}
+#dropZone input[type=file]{
+  position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;
+}
+#dropStatus{
+  font-size:var(--fsm);margin-top:8px;min-height:20px;
+  color:var(--accent3);text-align:center;
+}
+#dropStatus.err{color:var(--danger);}
+
+/* ── COL MAP MODAL ── */
+#colMapGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;}
+#colMapGrid label{color:var(--text2);font-size:var(--fsm);margin:0;}
+#colMapGrid select{font-size:var(--fsm);padding:7px 10px;}
+.preview-table-wrap{overflow:auto;max-height:150px;margin-top:12px;}
+.preview-table{width:100%;border-collapse:collapse;font-size:var(--fxs);}
+.preview-table th{
+  background:var(--bg0);color:var(--text2);
+  padding:5px 9px;text-align:left;position:sticky;top:0;
+}
+.preview-table td{padding:4px 9px;border-bottom:1px solid #1e293b20;color:var(--text);}
+.preview-table tr:hover td{background:#ffffff05;}
+.col-tag{
+  display:inline-block;padding:2px 7px;border-radius:4px;
+  font-size:11px;margin-left:5px;
+}
+.col-tag.input-tag{background:rgba(0,212,255,.15);color:var(--accent);}
+.col-tag.target-tag{background:rgba(124,58,237,.2);color:#a78bfa;}
+
+/* ════════════════════════════════
+   MOBILE TAB BAR
+   ════════════════════════════════ */
+#mobileTabBar{
+  position:fixed;bottom:0;left:0;right:0;z-index:150;
+  display:none;
+  background:rgba(10,22,40,.97);
+  border-top:1px solid var(--border);
+  backdrop-filter:blur(10px);
+}
+.mob-tab-btns{
+  display:flex;justify-content:space-around;align-items:stretch;
+  padding:2px 0 env(safe-area-inset-bottom,6px);
+}
+.mob-tab{
+  flex:1;display:flex;flex-direction:column;align-items:center;
+  padding:10px 4px 6px;background:none;border:none;
+  color:var(--text2);font-size:10px;cursor:pointer;margin:0;
+  font-family:'Orbitron',sans-serif;letter-spacing:.5px;
+  transition:color .15s;-webkit-tap-highlight-color:transparent;
+  border-radius:0;
+}
+.mob-tab .tab-icon{font-size:22px;margin-bottom:3px;}
+.mob-tab.active{color:var(--accent);}
+.mob-tab.active .tab-icon{filter:drop-shadow(0 0 6px var(--accent));}
+
+/* ════════════════════════════════
+   MOBILE LAYOUT  ≤ 768px
+   ════════════════════════════════ */
+@media(max-width:768px){
+  body{overflow:hidden;}
+
+  /* 三欄變單一頁面，靠 tab 切換 */
+  #app{
+    display:block;
+    height:calc(100vh - 64px); /* 留底部 tab bar */
+    overflow:hidden;position:relative;
+  }
+
+  /* 每個 panel 佔滿整個 app 區域，預設隱藏 */
+  .panel, #center{
+    position:absolute;inset:0;
+    width:100%;height:100%;
+    overflow-y:auto;overflow-x:hidden;
+    display:none;
+    border:none;
+  }
+  /* 左 panel 有 padding */
+  .panel{padding:14px 14px 20px;}
+
+  /* 顯示中的 tab */
+  .panel.mob-active, #center.mob-active{display:block;}
+
+  /* 中間 canvas 需特殊處理 */
+  #center.mob-active{display:flex;flex-direction:column;}
+  #networkCanvas{flex:1;min-height:0;}
+
+  /* toolbar 在手機包窄 */
+  #toolbar{
+    position:static;transform:none;
+    border-radius:10px;margin:8px;
+    width:calc(100% - 16px);
+    flex-wrap:wrap;gap:6px;
+    flex-shrink:0;
+  }
+  #toolbar button{flex:1;min-width:60px;font-size:12px;padding:8px 6px;}
+
+  /* status bar 固定在 canvas 底部 */
+  #statusBar{
+    position:static;transform:none;
+    margin:0 8px 8px;border-radius:10px;
+    text-align:center;display:block;
+    flex-shrink:0;font-size:var(--fsm);
+  }
+
+  /* 顯示 tab bar */
+  #mobileTabBar{display:block;}
+
+  /* 字體在手機再放大一級 */
+  :root{
+    --fxs:14px;
+    --fsm:16px;
+    --fmd:18px;
+    --flg:22px;
+  }
+
+  /* input / select 更高避免老花難點 */
+  input,select{padding:13px 12px;font-size:16px !important;}/* 16px 防 iOS 自動縮放 */
+  button{padding:15px;font-size:14px;}
+
+  .section{padding:14px;border-radius:14px;}
+  .section h3{font-size:13px;}
+
+  .stat .value{font-size:var(--fmd);}
+  .legend{font-size:var(--fsm);}
+
+  /* export 按鈕手機全寬 */
+  .export-grid{grid-template-columns:1fr;}
+
+  /* modal 全螢幕 */
+  .modal{
+    width:100%;max-width:100%;border-radius:16px 16px 0 0;
+    padding:20px 16px;
+    position:fixed;bottom:0;left:0;right:0;
+    max-height:88vh;
+  }
+  .modal-overlay{align-items:flex-end;padding:0;}
+  .modal-btns{flex-direction:column;}
+  .modal-btns button{width:100%;}
+
+  /* col map modal 2欄改1欄 */
+  #colMapGrid,
+  .modal > div[style*="grid-template-columns:1fr 1fr"]{
+    grid-template-columns:1fr !important;
+  }
+
+  /* drop zone 手機放大 */
+  #dropZone{padding:26px 12px;}
+  #dropZone .drop-icon{font-size:36px;}
+  #dropZone .drop-label{font-size:var(--fsm);}
+
+  /* 進度條更粗 */
+  #trainingProgress{height:8px;}
+
+  /* layer badge / items */
+  .layer-badge{font-size:var(--fxs);}
+  .layer-item button{width:50px;padding:12px;font-size:16px;}
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+
+<!-- ══════════════════ LEFT PANEL ══════════════════ -->
+<div class="panel mob-active" id="panel-left">
+
+  <!-- 網路結構 -->
+  <div class="section">
+  <h2>神經網路實驗平台</h2>
+   <h3>2026年5月高嘉和以AI製作</h3>
+    <h3>神經網路結構</h3>
+    <div id="layersContainer"></div>
+    <button class="btn-secondary" onclick="addLayer()" style="margin-top:10px;">＋ 新增 Hidden Layer</button>
+  </div>
+
+  <!-- 資料集 -->
+  <div class="section">
+    <h3>訓練資料集</h3>
+    <label>預設資料集</label>
+    <select id="datasetSelect" onchange="loadPresetDataset()">
+      <option value="xor">XOR (2→1)</option>
+      <option value="and">AND (2→1)</option>
+      <option value="or">OR (2→1)</option>
+      <option value="circle">圓形分類 (2→1)</option>
+      <option value="custom">自訂…</option>
+    </select>
+    <button class="btn-secondary" onclick="openDatasetModal()">✏ 編輯資料集</button>
+
+    <!-- 拖曳上傳區 -->
+    <div id="dropZone" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+      <input type="file" accept=".csv,.xlsx,.xls" onchange="onFileSelect(event)">
+      <div class="drop-icon">📂</div>
+      <div class="drop-label">
+        拖曳 <b>CSV / XLSX</b> 至此<br>
+        或點擊選擇檔案
+      </div>
+    </div>
+    <div id="dropStatus"></div>
+
+    <div style="font-size:10px;color:var(--text2);margin-top:8px;">
+      共 <span id="datasetCount">4</span> 筆資料 │ 輸入: <span id="datasetInputDim">2</span>D │ 輸出: <span id="datasetOutputDim">1</span>D
+    </div>
+  </div>
+
+  <!-- 演算法設定 -->
+  <div class="section">
+    <h3>演算法設定</h3>
+    <label>演算法</label>
+    <select id="algorithm">
+      <option>BP</option>
+      <option>PSO</option>
+      <option>mPSO</option>
+      <option>GE</option>
+    </select>
+    <label>啟動函數</label>
+    <select id="activationFn">
+      <option value="sigmoid">Sigmoid</option>
+      <option value="relu">ReLU</option>
+      <option value="tanh">Tanh</option>
+      <option value="leakyrelu">Leaky ReLU</option>
+    </select>
+    <label>Population</label>
+    <input id="population" type="number" value="30">
+    <label>Iterations</label>
+    <input id="iterations" type="number" value="300">
+    <label>Learning Rate</label>
+    <input id="lr" type="number" step="0.01" value="0.3">
+    <label>Mutation Rate</label>
+    <input id="mutation" type="number" step="0.01" value="0.1">
+    <label>Loss 閾值 (Early Stop)</label>
+    <input id="earlyStop" type="number" step="0.001" value="0.001">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;">
+      <button class="btn-primary" onclick="startTraining()">▶ 開始訓練</button>
+      <button class="btn-danger" onclick="stopTraining()">■ 停止</button>
+    </div>
+    <button class="btn-secondary" onclick="resetTraining()">↺ 重置</button>
+  </div>
+
+</div>
+
+<!-- ══════════════════ CENTER ══════════════════ -->
+<div id="center">
+  <canvas id="networkCanvas"></canvas>
+
+  <div id="toolbar">
+    <button class="btn-secondary" onclick="toggleShowWeights()">⚖ 顯示權重</button>
+    <button class="btn-secondary" onclick="toggleShowActivations()">⚡ 標示激活</button>
+    <button class="btn-secondary" onclick="zoomIn()">＋</button>
+    <button class="btn-secondary" onclick="zoomOut()">－</button>
+    <button class="btn-secondary" onclick="resetZoom()">⊙</button>
+  </div>
+
+  <div id="statusBar">
+    <span id="statusDot" class="training-badge stopped"></span>
+    <span id="statusText">就緒</span>
+  </div>
+
+  <div id="tooltip"></div>
+</div>
+
+<!-- ══════════════════ RIGHT PANEL ══════════════════ -->
+<div class="panel right-panel" id="panel-right">
+
+  <!-- 訓練狀態 -->
+  <div class="section">
+    <h3>訓練狀態</h3>
+    <div class="stat-grid">
+      <div class="stat"><div class="label">Algorithm</div><div class="value" id="algoText">—</div></div>
+      <div class="stat"><div class="label">Iteration</div><div class="value" id="iterText">0</div></div>
+      <div class="stat"><div class="label">Loss</div><div class="value" id="lossText">—</div></div>
+      <div class="stat"><div class="label">Accuracy</div><div class="value" id="accText">—</div></div>
+    </div>
+    <div id="trainingProgress"><div id="progressBar"></div></div>
+    <div style="font-size:10px;color:var(--text2);margin-top:6px;" id="timeText">⏱ 訓練時間: —</div>
+  </div>
+
+  <!-- Loss Chart -->
+  <div class="section">
+    <h3>Loss Curve</h3>
+    <canvas id="lossChart"></canvas>
+  </div>
+
+  <!-- 推論測試 -->
+  <div class="section">
+    <h3>推論測試</h3>
+    <label>輸入值 (逗號分隔)</label>
+    <div class="inference-row">
+      <input id="inferInput" type="text" placeholder="例：0,1">
+      <button class="btn-info" onclick="runInference()" style="width:50px;margin:0;">▶</button>
+    </div>
+    <div class="inference-result" id="inferResult">—</div>
+    <button class="btn-secondary" onclick="runAllInference()" style="font-size:9px;">全資料集推論</button>
+  </div>
+
+  <!-- 匯出 -->
+  <div class="section">
+    <h3>匯出 / 應用</h3>
+    <div class="export-grid">
+      <button class="btn-secondary" onclick="exportJSON()">📄 JSON</button>
+      <button class="btn-secondary" onclick="exportPNG()">🖼 PNG</button>
+      <button class="btn-warn" onclick="exportHTMLApp()">🚀 HTML 應用</button>
+      <button class="btn-success" onclick="openImportModal()">📂 載入模型</button>
+    </div>
+  </div>
+
+  <!-- 視覺化說明 -->
+  <div class="section">
+    <h3>視覺化圖例</h3>
+    <div class="legend">
+      <span class="dot" style="background:#ff5050;"></span>正權重（紅色）<br>
+      <span class="dot" style="background:#50b4ff;"></span>負權重（藍色）<br>
+      <span class="dot" style="background:#00d4ff;"></span>高激活（亮藍）<br>
+      <span class="dot" style="background:#334155;"></span>低激活（暗色）<br>
+      透明度 = 權重絕對值強度<br>
+      支援 BP / PSO / mPSO / GE
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ══════════════════ MOBILE TAB BAR ══════════════════ -->
+<div id="mobileTabBar">
+  <div class="mob-tab-btns">
+    <button class="mob-tab active" id="tab-left" onclick="mobSwitch('left')">
+      <span class="tab-icon">⚙️</span>設定
+    </button>
+    <button class="mob-tab" id="tab-center" onclick="mobSwitch('center')">
+      <span class="tab-icon">🧠</span>網路圖
+    </button>
+    <button class="mob-tab" id="tab-right" onclick="mobSwitch('right')">
+      <span class="tab-icon">📊</span>結果
+    </button>
+  </div>
+</div>
+<div class="modal-overlay" id="datasetModal">
+  <div class="modal">
+    <h2>✏ 編輯訓練資料集</h2>
+    <p style="font-size:11px;color:var(--text2);margin-bottom:10px;">
+      JSON 格式：[{"input":[x1,x2],"target":[y]},...] 
+    </p>
+    <textarea id="datasetTextarea"></textarea>
+    <div class="modal-btns">
+      <button class="btn-success" onclick="saveDataset()">✓ 儲存</button>
+      <button class="btn-secondary" onclick="closeModal('datasetModal')">✕ 取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ IMPORT MODAL ══════════════════ -->
+<div class="modal-overlay" id="importModal">
+  <div class="modal">
+    <h2>📂 載入模型 JSON</h2>
+    <textarea id="importTextarea" placeholder="貼上模型 JSON..."></textarea>
+    <div class="modal-btns">
+      <button class="btn-success" onclick="importModel()">✓ 載入</button>
+      <button class="btn-secondary" onclick="closeModal('importModal')">✕ 取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ COL MAPPING MODAL ══════════════════ -->
+<div class="modal-overlay" id="colMapModal">
+  <div class="modal" style="width:580px;">
+    <h2>📊 欄位對應設定</h2>
+    <p style="font-size:11px;color:var(--text2);margin-bottom:6px;">
+      檔案：<span id="colMapFilename" style="color:var(--accent);"></span>
+      &nbsp;│&nbsp; <span id="colMapRowCount"></span> 筆資料
+      &nbsp;│&nbsp; <span id="colMapColCount"></span> 欄
+    </p>
+
+    <div class="preview-table-wrap">
+      <table class="preview-table" id="colPreviewTable"></table>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px;">
+      <div>
+        <div style="font-size:11px;color:var(--accent);margin-bottom:6px;">🔵 Input 欄位（可複選）</div>
+        <div id="inputColChecks" style="max-height:140px;overflow:auto;"></div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:#a78bfa;margin-bottom:6px;">🟣 Target 欄位（可複選）</div>
+        <div id="targetColChecks" style="max-height:140px;overflow:auto;"></div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:16px;align-items:center;margin-top:12px;font-size:11px;color:var(--text2);">
+      <label style="display:flex;align-items:center;gap:6px;margin:0;color:var(--text2);">
+        <input type="checkbox" id="hasHeader" checked style="width:auto;accent-color:var(--accent);"> 首列為標頭
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;margin:0;color:var(--text2);">
+        空值處理：
+        <select id="missingValPolicy" style="width:auto;padding:4px 8px;font-size:11px;">
+          <option value="skip">跳過該列</option>
+          <option value="zero">補 0</option>
+        </select>
+      </label>
+    </div>
+
+    <div id="colMapPreviewCount" style="font-size:11px;color:var(--accent3);margin-top:8px;"></div>
+
+    <div class="modal-btns">
+      <button class="btn-success" onclick="applyColMapping()">✓ 匯入為訓練資料集</button>
+      <button class="btn-secondary" onclick="closeModal('colMapModal')">✕ 取消</button>
+    </div>
+  </div>
+</div>
+
+<script>
+//////////////////////////////////////////////////////
+// Canvas
+//////////////////////////////////////////////////////
+const canvas = document.getElementById("networkCanvas");
+const ctx = canvas.getContext("2d");
+let W, H;
+
+function resize(){
+  W = canvas.width = canvas.offsetWidth;
+  H = canvas.height = canvas.offsetHeight;
+}
+window.addEventListener("resize", resize);
+resize();
+
+// Zoom / pan
+let zoom = 1, panX = 0, panY = 0;
+
+//////////////////////////////////////////////////////
+// Network State
+//////////////////////////////////////////////////////
+let networkStructure = [2, 4, 1];
+let activations = [];
+let currentWeights = null;
+let isTraining = false;
+let trainStop = false;
+let trainStart = 0;
+
+// Viz toggles
+let showWeights = false;
+let showActivations = true;
+
+//////////////////////////////////////////////////////
+// Activation Functions
+//////////////////////////////////////////////////////
+const activations_fn = {
+  sigmoid: x => 1 / (1 + Math.exp(-x)),
+  relu: x => Math.max(0, x),
+  tanh: x => Math.tanh(x),
+  leakyrelu: x => x >= 0 ? x : 0.01 * x
+};
+
+function getActivationFn(){
+  return activations_fn[document.getElementById("activationFn").value] || activations_fn.sigmoid;
+}
+
+//////////////////////////////////////////////////////
+// Datasets
+//////////////////////////////////////////////////////
+const presets = {
+  xor: [
+    {input:[0,0], target:[0]},
+    {input:[0,1], target:[1]},
+    {input:[1,0], target:[1]},
+    {input:[1,1], target:[0]}
+  ],
+  and: [
+    {input:[0,0], target:[0]},
+    {input:[0,1], target:[0]},
+    {input:[1,0], target:[0]},
+    {input:[1,1], target:[1]}
+  ],
+  or: [
+    {input:[0,0], target:[0]},
+    {input:[0,1], target:[1]},
+    {input:[1,0], target:[1]},
+    {input:[1,1], target:[1]}
+  ],
+  circle: Array.from({length:20}, (_,i) => {
+    const a = i / 20 * Math.PI * 2;
+    const r = i < 10 ? 0.3 + Math.random()*0.2 : 0.7 + Math.random()*0.2;
+    return {input:[r*Math.cos(a), r*Math.sin(a)], target:[i < 10 ? 1 : 0]};
+  })
+};
+
+let dataset = presets.xor.map(d => ({...d}));
+
+function loadPresetDataset(){
+  const sel = document.getElementById("datasetSelect").value;
+  if(sel === "custom") return;
+  dataset = JSON.parse(JSON.stringify(presets[sel]));
+  updateDatasetInfo();
+}
+
+function updateDatasetInfo(){
+  document.getElementById("datasetCount").textContent = dataset.length;
+  document.getElementById("datasetInputDim").textContent = dataset[0]?.input.length ?? '?';
+  document.getElementById("datasetOutputDim").textContent = dataset[0]?.target.length ?? '?';
+}
+
+function openDatasetModal(){
+  document.getElementById("datasetTextarea").value = JSON.stringify(dataset, null, 2);
+  document.getElementById("datasetModal").classList.add("show");
+}
+
+function saveDataset(){
+  try{
+    const parsed = JSON.parse(document.getElementById("datasetTextarea").value);
+    dataset = parsed;
+    updateDatasetInfo();
+    closeModal("datasetModal");
+  } catch(e){
+    alert("JSON 格式錯誤：" + e.message);
+  }
+}
+
+function closeModal(id){ document.getElementById(id).classList.remove("show"); }
+
+//////////////////////////////////////////////////////
+// DRAG-DROP + FILE UPLOAD (CSV / XLSX)
+//////////////////////////////////////////////////////
+let _parsedSheetData = [];   // raw rows (arrays)
+let _parsedHeaders   = [];   // column names
+
+function onDragOver(e){
+  e.preventDefault();
+  document.getElementById("dropZone").classList.add("drag-over");
+}
+function onDragLeave(e){
+  document.getElementById("dropZone").classList.remove("drag-over");
+}
+function onDrop(e){
+  e.preventDefault();
+  document.getElementById("dropZone").classList.remove("drag-over");
+  const file = e.dataTransfer.files[0];
+  if(file) handleFile(file);
+}
+function onFileSelect(e){
+  const file = e.target.files[0];
+  if(file) handleFile(file);
+  e.target.value = "";   // reset so same file can re-trigger
+}
+
+function handleFile(file){
+  const st = document.getElementById("dropStatus");
+  const name = file.name.toLowerCase();
+  if(!name.endsWith(".csv") && !name.endsWith(".xlsx") && !name.endsWith(".xls")){
+    st.textContent = "❌ 僅支援 .csv / .xlsx / .xls"; st.className = "err"; return;
+  }
+  st.textContent = "⏳ 讀取中…"; st.className = "";
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    try{
+      let wb;
+      if(name.endsWith(".csv")){
+        wb = XLSX.read(e.target.result, {type:"string", raw:false});
+      } else {
+        wb = XLSX.read(new Uint8Array(e.target.result), {type:"array"});
+      }
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:""});
+      if(!rows || rows.length < 2){ throw new Error("資料不足（至少需要 2 列）"); }
+      _parsedSheetData = rows;
+      openColMapModal(file.name, rows);
+      st.textContent = `✓ 已載入：${file.name}`;
+    } catch(err){
+      st.textContent = "❌ " + err.message; st.className = "err";
+    }
+  };
+  if(name.endsWith(".csv")) reader.readAsText(file, "UTF-8");
+  else reader.readAsArrayBuffer(file);
+}
+
+//////////////////////////////////////////////////////
+// COL MAPPING MODAL
+//////////////////////////////////////////////////////
+function openColMapModal(filename, rows){
+  document.getElementById("colMapFilename").textContent = filename;
+
+  // Detect if first row is header (any cell is non-numeric)
+  const firstRow = rows[0];
+  const hasHdr = firstRow.some(c => isNaN(parseFloat(c)) && c !== "");
+  document.getElementById("hasHeader").checked = hasHdr;
+  document.getElementById("hasHeader").onchange = () => openColMapModal(filename, rows);
+
+  _parsedHeaders = hasHdr ? firstRow.map(String) : firstRow.map((_,i)=>"Col_"+(i+1));
+  const dataRows = hasHdr ? rows.slice(1) : rows;
+
+  document.getElementById("colMapRowCount").textContent = dataRows.length;
+  document.getElementById("colMapColCount").textContent = _parsedHeaders.length;
+
+  // Preview table (first 5 rows)
+  const tbl = document.getElementById("colPreviewTable");
+  const previewRows = dataRows.slice(0, 5);
+  tbl.innerHTML =
+    "<thead><tr>" + _parsedHeaders.map((h,i)=>`<th id="ph${i}">${h}</th>`).join("") + "</tr></thead>" +
+    "<tbody>" + previewRows.map(r =>
+      "<tr>" + _parsedHeaders.map((_,i) => `<td>${r[i] ?? ""}</td>`).join("") + "</tr>"
+    ).join("") + "</tbody>";
+
+  // Checkbox lists
+  function makeChecks(containerId, color, defaultFn){
+    const el = document.getElementById(containerId);
+    el.innerHTML = _parsedHeaders.map((h,i)=>`
+      <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text);
+                    margin-bottom:5px;cursor:pointer;">
+        <input type="checkbox" data-idx="${i}" ${defaultFn(i)?"checked":""} 
+               style="width:auto;accent-color:${color};"
+               onchange="updateColPreview()">
+        <span>${h}</span>
+      </label>`).join("");
+  }
+
+  // Default: last col = target, rest = input
+  const n = _parsedHeaders.length;
+  makeChecks("inputColChecks",  "var(--accent)", i => i < n-1);
+  makeChecks("targetColChecks", "#a78bfa",       i => i === n-1);
+  updateColPreview();
+  document.getElementById("colMapModal").classList.add("show");
+}
+
+function getCheckedIdxs(containerId){
+  return [...document.querySelectorAll(`#${containerId} input[type=checkbox]:checked`)]
+         .map(c => parseInt(c.dataset.idx));
+}
+
+function updateColPreview(){
+  const inp = getCheckedIdxs("inputColChecks");
+  const tgt = getCheckedIdxs("targetColChecks");
+
+  // Highlight headers
+  _parsedHeaders.forEach((_,i)=>{
+    const th = document.getElementById("ph"+i);
+    if(!th) return;
+    th.innerHTML = _parsedHeaders[i] +
+      (inp.includes(i) ? '<span class="col-tag input-tag">IN</span>' : "") +
+      (tgt.includes(i) ? '<span class="col-tag target-tag">TGT</span>' : "");
+  });
+
+  const rows = document.getElementById("hasHeader").checked
+    ? _parsedSheetData.slice(1) : _parsedSheetData;
+  const policy = document.getElementById("missingValPolicy").value;
+  const preview = buildDataset(rows, inp, tgt, policy);
+  document.getElementById("colMapPreviewCount").textContent =
+    inp.length && tgt.length
+      ? `預計匯入 ${preview.length} 筆 │ 輸入 ${inp.length}D → 目標 ${tgt.length}D`
+      : "請至少各選一欄";
+}
+
+function buildDataset(rows, inputIdxs, targetIdxs, policy){
+  const result = [];
+  rows.forEach(row => {
+    const inputVals  = inputIdxs.map(i  => parseFloat(row[i]));
+    const targetVals = targetIdxs.map(i => parseFloat(row[i]));
+    const hasMissing = [...inputVals,...targetVals].some(v => isNaN(v));
+    if(hasMissing){
+      if(policy === "skip") return;
+      // zero fill
+      inputVals.forEach((_,i)=>{ if(isNaN(inputVals[i])) inputVals[i]=0; });
+      targetVals.forEach((_,i)=>{ if(isNaN(targetVals[i])) targetVals[i]=0; });
+    }
+    result.push({input:inputVals, target:targetVals});
+  });
+  return result;
+}
+
+function applyColMapping(){
+  const inp = getCheckedIdxs("inputColChecks");
+  const tgt = getCheckedIdxs("targetColChecks");
+  if(!inp.length || !tgt.length){ alert("請至少各選一個 Input 欄與 Target 欄"); return; }
+  const rows = document.getElementById("hasHeader").checked
+    ? _parsedSheetData.slice(1) : _parsedSheetData;
+  const policy = document.getElementById("missingValPolicy").value;
+  const newDs = buildDataset(rows, inp, tgt, policy);
+  if(!newDs.length){ alert("沒有有效資料列（全部被過濾）"); return; }
+  dataset = newDs;
+  // switch selector to custom
+  document.getElementById("datasetSelect").value = "custom";
+  updateDatasetInfo();
+  closeModal("colMapModal");
+  const st = document.getElementById("dropStatus");
+  st.textContent = `✅ 已匯入 ${dataset.length} 筆 (${inp.length}D→${tgt.length}D)`;
+  st.className = "";
+}
+
+function openImportModal(){
+  document.getElementById("importTextarea").value = "";
+  document.getElementById("importModal").classList.add("show");
+}
+
+function importModel(){
+  try{
+    const data = JSON.parse(document.getElementById("importTextarea").value);
+    networkStructure = data.structure;
+    currentWeights = data.weights;
+    renderLayerEditor();
+    updateDatasetInfo();
+    closeModal("importModal");
+    setStatus("模型已載入", false);
+  } catch(e){
+    alert("載入失敗：" + e.message);
+  }
+}
+
+//////////////////////////////////////////////////////
+// Weight Count / Decode
+//////////////////////////////////////////////////////
+function getWeightCount(){
+  let t = 0;
+  for(let i = 0; i < networkStructure.length - 1; i++)
+    t += (networkStructure[i] + 1) * networkStructure[i + 1]; // bias included
+  return t;
+}
+
+function decodeWeights(vector){
+  let weights = [], biases = [], index = 0;
+  for(let l = 0; l < networkStructure.length - 1; l++){
+    let lw = [], lb = [];
+    for(let i = 0; i < networkStructure[l]; i++){
+      let nw = [];
+      for(let j = 0; j < networkStructure[l+1]; j++)
+        nw.push(vector[index++]);
+      lw.push(nw);
+    }
+    for(let j = 0; j < networkStructure[l+1]; j++)
+      lb.push(vector[index++]);
+    weights.push(lw);
+    biases.push(lb);
+  }
+  return {weights, biases};
+}
+
+function randomVector(){
+  // Xavier init
+  return Array.from({length: getWeightCount()}, (_, i) => {
+    const scale = Math.sqrt(2 / networkStructure[0]);
+    return (Math.random() * 2 - 1) * scale;
+  });
+}
+
+//////////////////////////////////////////////////////
+// Forward Pass
+//////////////////////////////////////////////////////
+function forward(input, decoded){
+  const {weights, biases} = decoded;
+  const fn = getActivationFn();
+  activations = [];
+  activations.push([...input]);
+  let current = [...input];
+
+  for(let l = 0; l < weights.length; l++){
+    let next = [];
+    for(let j = 0; j < weights[l][0].length; j++){
+      let sum = biases[l][j] || 0;
+      for(let i = 0; i < weights[l].length; i++)
+        sum += current[i] * weights[l][i][j];
+      // Output layer: sigmoid for classification, linear for regression
+      if(l === weights.length - 1)
+        next.push(activations_fn.sigmoid(sum));
+      else
+        next.push(fn(sum));
+    }
+    current = next;
+    activations.push([...current]);
+  }
+  return current;
+}
+
+//////////////////////////////////////////////////////
+// Fitness
+//////////////////////////////////////////////////////
+function evaluateFitness(vector){
+  const decoded = decodeWeights(vector);
+  let mse = 0;
+  dataset.forEach(data => {
+    const output = forward(data.input, decoded);
+    for(let k = 0; k < data.target.length; k++)
+      mse += Math.pow(data.target[k] - output[k], 2);
+  });
+  return mse / dataset.length;
+}
+
+//////////////////////////////////////////////////////
+// Accuracy
+//////////////////////////////////////////////////////
+function computeAccuracy(vector){
+  const decoded = decodeWeights(vector);
+  let correct = 0;
+  dataset.forEach(data => {
+    const out = forward(data.input, decoded);
+    const pred = out[0] >= 0.5 ? 1 : 0;
+    if(pred === data.target[0]) correct++;
+  });
+  return (correct / dataset.length * 100).toFixed(1);
+}
+
+//////////////////////////////////////////////////////
+// Network Drawing
+//////////////////////////////////////////////////////
+function drawNetwork(){
+  ctx.clearRect(0, 0, W, H);
+
+  ctx.save();
+  ctx.translate(panX, panY);
+  ctx.scale(zoom, zoom);
+
+  if(!currentWeights){
+    drawPlaceholder();
+    ctx.restore();
+    requestAnimationFrame(drawNetwork);
+    return;
+  }
+
+  const {weights} = currentWeights;
+  const layerGap = W / (networkStructure.length + 1);
+  const positions = [];
+
+  for(let l = 0; l < networkStructure.length; l++){
+    positions[l] = [];
+    const cnt = networkStructure[l];
+    const gap = Math.min(H / (cnt + 1), 60);
+    const startY = (H - gap * (cnt - 1)) / 2;
+    for(let n = 0; n < cnt; n++){
+      positions[l].push({x: layerGap * (l + 1), y: startY + gap * n});
+    }
+  }
+
+  // Connections
+  for(let l = 0; l < weights.length; l++){
+    for(let i = 0; i < weights[l].length; i++){
+      for(let j = 0; j < weights[l][i].length; j++){
+        const w = weights[l][i][j];
+        const p1 = positions[l][i];
+        const p2 = positions[l+1][j];
+        const alpha = Math.min(Math.abs(w), 1);
+
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
+        ctx.strokeStyle = w > 0
+          ? `rgba(255,80,80,${alpha})`
+          : `rgba(80,180,255,${alpha})`;
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+
+        // Weight labels
+        if(showWeights){
+          const mx = (p1.x + p2.x) / 2;
+          const my = (p1.y + p2.y) / 2;
+          ctx.fillStyle = "rgba(255,255,255,0.7)";
+          ctx.font = "9px JetBrains Mono";
+          ctx.fillText(w.toFixed(2), mx, my);
+        }
+      }
+    }
+  }
+
+  // Layer labels
+  const layerNames = ['Input', ...networkStructure.slice(1,-1).map((_,i)=>`H${i+1}`), 'Output'];
+  for(let l = 0; l < positions.length; l++){
+    ctx.font = "10px Orbitron, sans-serif";
+    ctx.fillStyle = "#94a3b8";
+    ctx.textAlign = "center";
+    ctx.fillText(layerNames[l], layerGap * (l + 1), H - 12);
+  }
+
+  // Neurons
+  for(let l = 0; l < positions.length; l++){
+    for(let n = 0; n < positions[l].length; n++){
+      const p = positions[l][n];
+      const act = activations[l] ? activations[l][n] : 0;
+      const glow = Math.floor(Math.max(0, Math.min(1, act)) * 255);
+
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 16, 0, Math.PI * 2);
+      ctx.fillStyle = `rgb(${glow}, ${glow}, 255)`;
+      ctx.shadowBlur = 20 * act;
+      ctx.shadowColor = `rgb(${glow}, ${glow}, 255)`;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = "#ffffff40";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // Activation value label
+      if(showActivations && activations[l]){
+        ctx.font = "9px JetBrains Mono";
+        ctx.fillStyle = "#ffffff";
+        ctx.textAlign = "center";
+        ctx.fillText(act.toFixed(2), p.x, p.y + 28);
+      }
+    }
+  }
+
+  ctx.textAlign = "left";
+  ctx.restore();
+  requestAnimationFrame(drawNetwork);
+}
+
+function drawPlaceholder(){
+  ctx.font = "14px Orbitron, sans-serif";
+  ctx.fillStyle = "#1e293b";
+  ctx.textAlign = "center";
+  ctx.fillText("請開始訓練以視覺化網路", W/2, H/2);
+  ctx.textAlign = "left";
+}
+
+//////////////////////////////////////////////////////
+// Zoom Controls
+//////////////////////////////////////////////////////
+function zoomIn(){ zoom = Math.min(zoom * 1.2, 4); }
+function zoomOut(){ zoom = Math.max(zoom / 1.2, 0.3); }
+function resetZoom(){ zoom = 1; panX = 0; panY = 0; }
+
+// Mouse drag
+let dragging = false, dragStart = {x:0, y:0};
+canvas.addEventListener("mousedown", e => { dragging = true; dragStart = {x: e.clientX - panX, y: e.clientY - panY}; });
+canvas.addEventListener("mousemove", e => { if(dragging){ panX = e.clientX - dragStart.x; panY = e.clientY - dragStart.y; } });
+canvas.addEventListener("mouseup", () => dragging = false);
+canvas.addEventListener("mouseleave", () => dragging = false);
+canvas.addEventListener("wheel", e => { e.preventDefault(); zoom *= e.deltaY < 0 ? 1.1 : 0.9; zoom = Math.min(4, Math.max(0.2, zoom)); }, {passive:false});
+
+//////////////////////////////////////////////////////
+// Toggle Viz
+//////////////////////////////////////////////////////
+function toggleShowWeights(){ showWeights = !showWeights; }
+function toggleShowActivations(){ showActivations = !showActivations; }
+
+//////////////////////////////////////////////////////
+// Layer Editor
+//////////////////////////////////////////////////////
+function renderLayerEditor(){
+  const container = document.getElementById("layersContainer");
+  container.innerHTML = "";
+  networkStructure.forEach((size, index) => {
+    const div = document.createElement("div");
+    div.className = "layer-item";
+    const isFirst = index === 0;
+    const isLast = index === networkStructure.length - 1;
+    div.innerHTML = `
+      <span class="layer-badge">${isFirst ? 'In' : isLast ? 'Out' : `H${index}`}</span>
+      <input type="number" min="1" max="32" value="${size}" onchange="updateLayer(${index},this.value)">
+      <button onclick="removeLayer(${index})" ${networkStructure.length <= 2 ? 'disabled' : ''}>✕</button>
+    `;
+    container.appendChild(div);
+  });
+}
+
+function addLayer(){
+  networkStructure.splice(networkStructure.length - 1, 0, 4);
+  renderLayerEditor();
+}
+
+function removeLayer(index){
+  if(networkStructure.length <= 2) return;
+  networkStructure.splice(index, 1);
+  renderLayerEditor();
+}
+
+function updateLayer(index, val){
+  networkStructure[index] = Math.max(1, parseInt(val) || 1);
+}
+
+//////////////////////////////////////////////////////
+// Chart
+//////////////////////////////////////////////////////
+let chart, history = [];
+
+function initChart(){
+  const c = document.getElementById("lossChart");
+  chart = new Chart(c, {
+    type: "line",
+    data: {
+      labels: [],
+      datasets: [{
+        label: "Loss",
+        data: [],
+        borderColor: "#00d4ff",
+        backgroundColor: "rgba(0,212,255,0.1)",
+        borderWidth: 1.5,
+        pointRadius: 0,
+        tension: 0.3,
+        fill: true
+      }]
+    },
+    options: {
+      responsive: true,
+      animation: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { display: false },
+        y: {
+          ticks: { color: "#94a3b8", font: { size: 10 } },
+          grid: { color: "#1e293b" }
+        }
+      }
+    }
+  });
+}
+
+function updateChart(){
+  chart.data.labels = history.map((_, i) => i);
+  chart.data.datasets[0].data = history;
+  chart.update();
+}
+
+//////////////////////////////////////////////////////
+// UI Update
+//////////////////////////////////////////////////////
+function updateUI(iter, loss, totalIter, vector){
+  document.getElementById("iterText").textContent = iter;
+  document.getElementById("lossText").textContent = loss.toFixed(6);
+  const acc = vector ? computeAccuracy(vector) : "—";
+  document.getElementById("accText").textContent = acc + "%";
+  history.push(loss);
+  updateChart();
+  const pct = Math.round(iter / totalIter * 100);
+  document.getElementById("progressBar").style.width = pct + "%";
+  const elapsed = ((Date.now() - trainStart) / 1000).toFixed(1);
+  document.getElementById("timeText").textContent = `⏱ 訓練時間: ${elapsed}s`;
+}
+
+function setStatus(msg, training){
+  document.getElementById("statusText").textContent = msg;
+  const dot = document.getElementById("statusDot");
+  if(training){ dot.classList.remove("stopped"); }
+  else { dot.classList.add("stopped"); }
+}
+
+//////////////////////////////////////////////////////
+// BP
+//////////////////////////////////////////////////////
+async function runBP(){
+  let vector = randomVector();
+  const lr = parseFloat(document.getElementById("lr").value);
+  const iterations = parseInt(document.getElementById("iterations").value);
+  const earlyStop = parseFloat(document.getElementById("earlyStop").value);
+
+  for(let t = 0; t < iterations; t++){
+    if(trainStop) break;
+    for(let i = 0; i < vector.length; i++){
+      const orig = vector[i];
+      const eps = 0.01;
+      vector[i] += eps;
+      const l1 = evaluateFitness(vector);
+      vector[i] -= eps * 2;
+      const l2 = evaluateFitness(vector);
+      vector[i] = orig - lr * (l1 - l2) / (2 * eps);
+    }
+    const loss = evaluateFitness(vector);
+    currentWeights = decodeWeights(vector);
+    forward(dataset[t % dataset.length].input, currentWeights);
+    updateUI(t, loss, iterations, vector);
+    if(loss < earlyStop){ setStatus("Early Stop 達成！", false); break; }
+    await sleep(5);
+  }
+}
+
+//////////////////////////////////////////////////////
+// PSO / mPSO
+//////////////////////////////////////////////////////
+async function runPSO(mutation = false){
+  const pop = parseInt(document.getElementById("population").value);
+  const iterations = parseInt(document.getElementById("iterations").value);
+  const mutRate = parseFloat(document.getElementById("mutation").value);
+  const earlyStop = parseFloat(document.getElementById("earlyStop").value);
+
+  const particles = Array.from({length: pop}, () => ({
+    position: randomVector(),
+    velocity: randomVector().map(() => (Math.random() - 0.5) * 0.1),
+    pBest: null, pBestFitness: Infinity
+  }));
+
+  let gBest = null, gBestFitness = Infinity;
+
+  for(let t = 0; t < iterations; t++){
+    if(trainStop) break;
+
+    particles.forEach(p => {
+      const fit = evaluateFitness(p.position);
+      if(fit < p.pBestFitness){ p.pBestFitness = fit; p.pBest = [...p.position]; }
+      if(fit < gBestFitness){ gBestFitness = fit; gBest = [...p.position]; }
+    });
+
+    particles.forEach(p => {
+      for(let i = 0; i < p.position.length; i++){
+        if(mutation && Math.random() < mutRate){
+          p.velocity[i] = (Math.random() - 0.5) * 2;
+        } else {
+          const r1 = Math.random(), r2 = Math.random();
+          p.velocity[i] = 0.7 * p.velocity[i]
+            + 1.8 * r1 * (p.pBest[i] - p.position[i])
+            + 1.8 * r2 * (gBest[i] - p.position[i]);
+        }
+        p.position[i] += p.velocity[i];
+        // Clamp
+        p.position[i] = Math.max(-10, Math.min(10, p.position[i]));
+      }
+    });
+
+    currentWeights = decodeWeights(gBest);
+    forward(dataset[t % dataset.length].input, currentWeights);
+    updateUI(t, gBestFitness, iterations, gBest);
+    if(gBestFitness < earlyStop){ setStatus("Early Stop 達成！", false); break; }
+    await sleep(5);
+  }
+}
+
+//////////////////////////////////////////////////////
+// GE
+//////////////////////////////////////////////////////
+async function runGE(){
+  const popSize = parseInt(document.getElementById("population").value);
+  const iterations = parseInt(document.getElementById("iterations").value);
+  const mutRate = parseFloat(document.getElementById("mutation").value);
+  const earlyStop = parseFloat(document.getElementById("earlyStop").value);
+
+  let population = Array.from({length: popSize}, () => randomVector());
+
+  for(let t = 0; t < iterations; t++){
+    if(trainStop) break;
+    population.sort((a, b) => evaluateFitness(a) - evaluateFitness(b));
+    const best = population[0];
+    const bestFitness = evaluateFitness(best);
+    const elite = population.slice(0, Math.max(2, Math.floor(popSize * 0.2)));
+    const newPop = [...elite];
+    while(newPop.length < popSize){
+      const p1 = elite[Math.floor(Math.random() * elite.length)];
+      const p2 = elite[Math.floor(Math.random() * elite.length)];
+      const child = p1.map((g, gi) => {
+        let v = Math.random() < 0.5 ? g : p2[gi];
+        if(Math.random() < mutRate) v += (Math.random() - 0.5) * 0.5;
+        return v;
+      });
+      newPop.push(child);
+    }
+    population = newPop;
+    currentWeights = decodeWeights(best);
+    forward(dataset[t % dataset.length].input, currentWeights);
+    updateUI(t, bestFitness, iterations, best);
+    if(bestFitness < earlyStop){ setStatus("Early Stop 達成！", false); break; }
+    await sleep(5);
+  }
+}
+
+//////////////////////////////////////////////////////
+// Dispatcher
+//////////////////////////////////////////////////////
+async function startTraining(){
+  if(isTraining) return;
+  isTraining = true; trainStop = false; trainStart = Date.now();
+  history = [];
+  chart.data.labels = []; chart.data.datasets[0].data = [];
+  chart.update();
+  document.getElementById("progressBar").style.width = "0%";
+  const algo = document.getElementById("algorithm").value;
+  document.getElementById("algoText").textContent = algo;
+  setStatus(`訓練中… (${algo})`, true);
+
+  switch(algo){
+    case "BP":   await runBP(); break;
+    case "PSO":  await runPSO(false); break;
+    case "mPSO": await runPSO(true); break;
+    case "GE":   await runGE(); break;
+  }
+
+  if(!trainStop) setStatus("訓練完成 ✓", false);
+  isTraining = false;
+  document.getElementById("progressBar").style.width = "100%";
+}
+
+function stopTraining(){
+  trainStop = true;
+  setStatus("已手動停止", false);
+}
+
+function resetTraining(){
+  trainStop = true; isTraining = false;
+  history = [];
+  chart.data.labels = []; chart.data.datasets[0].data = [];
+  chart.update();
+  currentWeights = null;
+  activations = [];
+  document.getElementById("progressBar").style.width = "0%";
+  document.getElementById("iterText").textContent = "0";
+  document.getElementById("lossText").textContent = "—";
+  document.getElementById("accText").textContent = "—";
+  document.getElementById("timeText").textContent = "⏱ 訓練時間: —";
+  setStatus("已重置", false);
+}
+
+//////////////////////////////////////////////////////
+// Inference
+//////////////////////////////////////////////////////
+function runInference(){
+  if(!currentWeights){ document.getElementById("inferResult").innerHTML = '<span class="result-err">尚未訓練</span>'; return; }
+  try{
+    const vals = document.getElementById("inferInput").value.split(",").map(Number);
+    const out = forward(vals, currentWeights);
+    const pred = out[0] >= 0.5 ? 1 : 0;
+    document.getElementById("inferResult").innerHTML =
+      `<span class="result-ok">輸出: [${out.map(v=>v.toFixed(4)).join(", ")}]</span><br>預測類別: <b>${pred}</b>`;
+  } catch(e){
+    document.getElementById("inferResult").innerHTML = `<span class="result-err">錯誤: ${e.message}</span>`;
+  }
+}
+
+function runAllInference(){
+  if(!currentWeights){ return; }
+  let html = '<table style="width:100%;font-size:11px;border-collapse:collapse;">'
+    + '<tr><th style="color:#94a3b8;text-align:left;padding:3px 5px;border-bottom:1px solid #1e293b;">輸入</th>'
+    + '<th style="color:#94a3b8;text-align:left;padding:3px 5px;border-bottom:1px solid #1e293b;">目標</th>'
+    + '<th style="color:#94a3b8;text-align:left;padding:3px 5px;border-bottom:1px solid #1e293b;">輸出</th>'
+    + '<th style="color:#94a3b8;text-align:left;padding:3px 5px;border-bottom:1px solid #1e293b;">✓</th></tr>';
+  dataset.forEach(d => {
+    const out = forward(d.input, currentWeights);
+    const pred = out[0] >= 0.5 ? 1 : 0;
+    const ok = pred === d.target[0];
+    html += `<tr>
+      <td style="padding:3px 5px;border-bottom:1px solid #1e293b20;">[${d.input.join(",")}]</td>
+      <td style="padding:3px 5px;">[${d.target.join(",")}]</td>
+      <td style="padding:3px 5px;">${out[0].toFixed(3)}</td>
+      <td style="padding:3px 5px;color:${ok?'#10b981':'#ef4444'}">${ok?'✓':'✗'}</td>
+    </tr>`;
+  });
+  html += '</table>';
+  document.getElementById("inferResult").innerHTML = html;
+}
+
+//////////////////////////////////////////////////////
+// Export JSON
+//////////////////////////////////////////////////////
+function exportJSON(){
+  if(!currentWeights){ alert("尚未訓練"); return; }
+  const data = {
+    version: 2,
+    structure: networkStructure,
+    activation: document.getElementById("activationFn").value,
+    algorithm: document.getElementById("algorithm").value,
+    weights: currentWeights.weights,
+    biases: currentWeights.biases,
+    trainedAt: new Date().toISOString(),
+    finalLoss: history[history.length - 1]
+  };
+  downloadBlob(JSON.stringify(data, null, 2), "model.json", "application/json");
+}
+
+//////////////////////////////////////////////////////
+// Export PNG
+//////////////////////////////////////////////////////
+function exportPNG(){
+  const a = document.createElement("a");
+  a.href = canvas.toDataURL();
+  a.download = "network.png";
+  a.click();
+}
+
+//////////////////////////////////////////////////////
+// Export HTML App ← NEW
+//////////////////////////////////////////////////////
+function exportHTMLApp(){
+  if(!currentWeights){ alert("請先完成訓練再匯出"); return; }
+  const structure = networkStructure;
+  const weights = currentWeights.weights;
+  const biases = currentWeights.biases;
+  const activFn = document.getElementById("activationFn").value;
+  const algo = document.getElementById("algorithm").value;
+  const ds = JSON.stringify(dataset);
+  const finalLoss = history.length ? history[history.length - 1].toFixed(6) : "—";
+
+  const html = `<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Neural Network App — 匯出模型</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;font-family:'Courier New',monospace;}
+  body{background:#020617;color:#e2e8f0;min-height:100vh;padding:30px 20px;}
+  h1{font-family:Georgia,serif;color:#00d4ff;font-size:22px;margin-bottom:4px;}
+  .sub{color:#94a3b8;font-size:12px;margin-bottom:28px;}
+  .card{background:#0f172a;border:1px solid #1e293b;border-radius:12px;padding:20px;margin-bottom:18px;max-width:600px;}
+  .card h2{color:#7c3aed;font-size:13px;letter-spacing:2px;text-transform:uppercase;margin-bottom:14px;}
+  label{display:block;color:#94a3b8;font-size:11px;margin-bottom:4px;margin-top:10px;}
+  input{width:100%;padding:9px;background:#020617;border:1px solid #1e293b;color:#e2e8f0;
+    border-radius:6px;font-family:'Courier New',monospace;font-size:13px;outline:none;}
+  input:focus{border-color:#00d4ff;}
+  button{background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;border:none;
+    padding:10px 20px;border-radius:8px;cursor:pointer;font-size:13px;margin-top:14px;width:100%;}
+  button:hover{filter:brightness(1.15);}
+  .result{background:#020617;border:1px solid #1e293b;border-radius:8px;padding:14px;
+    margin-top:14px;min-height:50px;font-size:13px;line-height:1.8;}
+  .ok{color:#10b981;} .err{color:#ef4444;} .info{color:#00d4ff;}
+  .meta-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:6px;}
+  .badge{background:#1e293b;border-radius:4px;padding:4px 10px;font-size:11px;color:#94a3b8;}
+  .badge span{color:#e2e8f0;}
+  canvas{border:1px solid #1e293b;border-radius:8px;width:100%;max-width:560px;display:block;background:#020617;}
+  table{width:100%;border-collapse:collapse;font-size:12px;}
+  th{color:#94a3b8;text-align:left;padding:5px 8px;border-bottom:1px solid #1e293b;}
+  td{padding:5px 8px;border-bottom:1px solid #1e293b20;}
+</style>
+</head>
+<body>
+<h1>🧠 Neural Network — 推論應用</h1>
+<div class="sub">由 AI Evolution Laboratory 匯出 · 模型版本 v2</div>
+
+<div class="card">
+  <h2>模型資訊</h2>
+  <div class="meta-row">
+    <div class="badge">演算法 <span>${algo}</span></div>
+    <div class="badge">激活函數 <span>${activFn}</span></div>
+    <div class="badge">Final Loss <span>${finalLoss}</span></div>
+    <div class="badge">結構 <span>${structure.join('→')}</span></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>推論介面</h2>
+  <label>輸入值（逗號分隔，共 ${structure[0]} 個）</label>
+  <input id="inp" type="text" placeholder="例：${Array(structure[0]).fill(0).join(',')}">
+  <button onclick="predict()">▶ 執行推論</button>
+  <div class="result" id="result">—</div>
+</div>
+
+<div class="card">
+  <h2>訓練資料集驗證</h2>
+  <button onclick="runAll()" style="margin-bottom:12px;">全資料集驗證</button>
+  <div id="allResults"></div>
+</div>
+
+<div class="card">
+  <h2>網路視覺化</h2>
+  <canvas id="nc" height="300"></canvas>
+</div>
+
+<script>
+const structure = ${JSON.stringify(structure)};
+const modelWeights = ${JSON.stringify(weights)};
+const modelBiases = ${JSON.stringify(biases)};
+const dataset = ${ds};
+const activFnName = "${activFn}";
+
+const fns = {
+  sigmoid: x => 1/(1+Math.exp(-x)),
+  relu: x => Math.max(0,x),
+  tanh: x => Math.tanh(x),
+  leakyrelu: x => x >= 0 ? x : 0.01*x
+};
+const fn = fns[activFnName] || fns.sigmoid;
+
+function forward(input){
+  let cur = [...input];
+  for(let l=0;l<modelWeights.length;l++){
+    let next=[];
+    for(let j=0;j<modelWeights[l][0].length;j++){
+      let s = (modelBiases[l]&&modelBiases[l][j])||0;
+      for(let i=0;i<modelWeights[l].length;i++) s+=cur[i]*modelWeights[l][i][j];
+      next.push(l===modelWeights.length-1?fns.sigmoid(s):fn(s));
+    }
+    cur=next;
+  }
+  return cur;
+}
+
+function predict(){
+  try{
+    const vals = document.getElementById("inp").value.split(",").map(Number);
+    if(vals.length !== structure[0]){ throw new Error("輸入維度不符，需要 "+structure[0]+" 個值"); }
+    const out = forward(vals);
+    const pred = out[0] >= 0.5 ? 1 : 0;
+    document.getElementById("result").innerHTML =
+      '<span class="info">原始輸出: ['+out.map(v=>v.toFixed(4)).join(", ")+']</span><br>'
+      +'預測類別: <b class="ok">'+pred+'</b>';
+  }catch(e){
+    document.getElementById("result").innerHTML='<span class="err">'+e.message+'</span>';
+  }
+}
+
+function runAll(){
+  let html='<table><tr><th>輸入</th><th>目標</th><th>輸出</th><th>正確</th></tr>';
+  let correct=0;
+  dataset.forEach(d=>{
+    const out=forward(d.input);
+    const pred=out[0]>=0.5?1:0;
+    const ok=pred===d.target[0];
+    if(ok)correct++;
+    html+='<tr><td>['+d.input.join(",")+']</td><td>['+d.target.join(",")+']</td><td>'+out[0].toFixed(3)+'</td><td style="color:'+(ok?'#10b981':'#ef4444')+'">'+(ok?'✓':'✗')+'</td></tr>';
+  });
+  html+='</table><br><b class="ok">準確率: '+(correct/dataset.length*100).toFixed(1)+'%</b>';
+  document.getElementById("allResults").innerHTML=html;
+}
+
+// Draw network
+(function(){
+  const c=document.getElementById("nc");
+  c.width=c.parentElement.offsetWidth||540;
+  const ctx=c.getContext("2d");
+  const W=c.width,H=300;
+  const layerGap=W/(structure.length+1);
+  const pos=[];
+  for(let l=0;l<structure.length;l++){
+    pos[l]=[];
+    const g=Math.min(H/(structure[l]+1),50);
+    const sy=(H-g*(structure[l]-1))/2;
+    for(let n=0;n<structure[l];n++) pos[l].push({x:layerGap*(l+1),y:sy+g*n});
+  }
+  for(let l=0;l<modelWeights.length;l++){
+    for(let i=0;i<modelWeights[l].length;i++){
+      for(let j=0;j<modelWeights[l][i].length;j++){
+        const w=modelWeights[l][i][j];
+        const a=Math.min(Math.abs(w),1);
+        ctx.beginPath();ctx.moveTo(pos[l][i].x,pos[l][i].y);ctx.lineTo(pos[l+1][j].x,pos[l+1][j].y);
+        ctx.strokeStyle=w>0?'rgba(255,80,80,'+a+')':'rgba(80,180,255,'+a+')';
+        ctx.lineWidth=1.2;ctx.stroke();
+      }
+    }
+  }
+  for(let l=0;l<pos.length;l++){
+    for(let n=0;n<pos[l].length;n++){
+      ctx.beginPath();ctx.arc(pos[l][n].x,pos[l][n].y,12,0,Math.PI*2);
+      ctx.fillStyle='rgb(80,80,255)';ctx.shadowBlur=10;ctx.shadowColor='#60a5fa';ctx.fill();
+      ctx.shadowBlur=0;ctx.strokeStyle='#ffffff30';ctx.lineWidth=1.5;ctx.stroke();
+    }
+  }
+})();
+<\/script>
+</body>
+</html>`;
+
+  downloadBlob(html, "neural_app.html", "text/html");
+}
+
+//////////////////////////////////////////////////////
+// Helpers
+//////////////////////////////////////////////////////
+function downloadBlob(content, filename, type){
+  const blob = new Blob([content], {type});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+}
+
+function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
+
+//////////////////////////////////////////////////////
+// Mobile Tab Switching
+//////////////////////////////////////////////////////
+const MOB_PANELS = {
+  left:   document.getElementById('panel-left'),
+  center: document.getElementById('center'),
+  right:  document.getElementById('panel-right')
+};
+const MOB_TABS = {
+  left:   document.getElementById('tab-left'),
+  center: document.getElementById('tab-center'),
+  right:  document.getElementById('tab-right')
+};
+
+function mobSwitch(tab){
+  // Only apply when mobile media query is active
+  if(window.innerWidth > 768) return;
+  Object.entries(MOB_PANELS).forEach(([k, el]) => {
+    el.classList.toggle('mob-active', k === tab);
+  });
+  Object.entries(MOB_TABS).forEach(([k, el]) => {
+    el.classList.toggle('active', k === tab);
+  });
+  // Re-trigger canvas resize when switching to center
+  if(tab === 'center') setTimeout(resize, 50);
+}
+
+// On resize: if back to desktop, remove mob-active overrides
+window.addEventListener('resize', () => {
+  if(window.innerWidth > 768){
+    Object.values(MOB_PANELS).forEach(el => el.classList.remove('mob-active'));
+  } else {
+    // restore whichever tab is active
+    const activeTab = document.querySelector('.mob-tab.active');
+    if(activeTab){
+      const id = activeTab.id.replace('tab-','');
+      mobSwitch(id);
+    }
+  }
+});
+
+//////////////////////////////////////////////////////
+// Init
+//////////////////////////////////////////////////////
+updateDatasetInfo();
+renderLayerEditor();
+initChart();
+drawNetwork();
+setStatus("就緒", false);
+</script>
+</body>
+</html>
