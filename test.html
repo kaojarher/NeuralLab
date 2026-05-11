@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 空間手勢亮度控制</title>
+    <!-- 引入 MediaPipe 必要資源 -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+
+    <style>
+        body { margin: 0; background: #000; overflow: hidden; color: white; font-family: sans-serif; }
+        
+        /* 亮度受控主容器 */
+        #main-container {
+            width: 100vw; height: 100vh;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            filter: brightness(var(--brightness, 100%));
+            background: linear-gradient(135deg, #1e3a8a, #581c87);
+            transition: filter 0.15s ease-out;
+        }
+
+        /* 攝像頭預覽視窗 (縮小放在角落) */
+        .video-container {
+            position: fixed; bottom: 20px; right: 20px;
+            width: 200px; height: 150px;
+            border: 2px solid #fff; border-radius: 10px; overflow: hidden; transform: scaleX(-1);
+        }
+        #input_video, #output_canvas { position: absolute; width: 100%; height: 100%; }
+
+        #hud {
+            font-size: 3rem; font-weight: bold; background: rgba(0,0,0,0.5);
+            padding: 20px 40px; border-radius: 15px;
+        }
+        .guide { margin-top: 10px; color: #ddd; }
+    </style>
+</head>
+<body>
+
+    <div id="main-container">
+        <div id="hud">亮度: <span id="percent">100</span>%</div>
+        <div class="guide">舉起手，上下移動食指來控制</div>
+    </div>
+
+    <div class="video-container">
+        <video id="input_video" playsinline></video>
+        <canvas id="output_canvas"></canvas>
+    </div>
+
+    <script>
+        const videoElement = document.getElementById('input_video');
+        const canvasElement = document.getElementById('output_canvas');
+        const canvasCtx = canvasElement.getContext('2d');
+        const hudValue = document.getElementById('percent');
+        const container = document.getElementById('main-container');
+
+        let lastBrightness = 100;
+
+        function onResults(results) {
+            // 繪製視覺回饋
+            canvasCtx.save();
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+            
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                for (const landmarks of results.multiHandLandmarks) {
+                    drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {color: '#00FF00', lineWidth: 5});
+                    drawLandmarks(canvasCtx, landmarks, {color: '#FF0000', lineWidth: 2});
+
+                    // 取得食指尖座標 (Landmark 8)
+                    // MediaPipe Y 座標範圍是 0 (頂) 到 1 (底)
+                    const indexFingerY = landmarks[8].y;
+                    
+                    // 映射 Y 座標到亮度 (反轉：手越高 Y 越小，亮度越高)
+                    // 設定手部在畫面 0.2 到 0.8 範圍內移動
+                    let targetBrightness = (1 - indexFingerY) * 250; 
+                    
+                    // 平滑化處理 (防止震盪)
+                    let smoothBrightness = (lastBrightness * 0.7) + (targetBrightness * 0.3);
+                    smoothBrightness = Math.min(Math.max(smoothBrightness, 10), 250);
+                    
+                    lastBrightness = smoothBrightness;
+                    
+                    // 應用 CSS 變數
+                    container.style.setProperty('--brightness', `${smoothBrightness}%`);
+                    hudValue.innerText = Math.round(smoothBrightness);
+                }
+            }
+            canvasCtx.restore();
+        }
+
+        const hands = new Hands({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+        });
+
+        hands.setOptions({
+            maxNumHands: 1,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+        hands.onResults(onResults);
+
+        const camera = new Camera(videoElement, {
+            onFrame: async () => {
+                await hands.send({image: videoElement});
+            },
+            width: 640,
+            height: 480
+        });
+        camera.start();
+    </script>
+</body>
+</html>
