@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>MediaPipe 手指切泡泡遊戲</title>
+    <!-- 載入 MediaPipe 必要的 JS 庫 -->
+    <script src="https://jsdelivr.net" crossorigin="anonymous"></script>
+    <script src="https://jsdelivr.net" crossorigin="anonymous"></script>
+    <script src="https://jsdelivr.net" crossorigin="anonymous"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background: #222; font-family: sans-serif; }
+        #container { position: relative; width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; }
+        video { transform: scaleX(-1); display: none; } /* 隱藏原始影片 */
+        canvas { transform: scaleX(-1); border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+        #ui { position: absolute; top: 20px; left: 20px; color: white; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); pointer-events: none; }
+        h1 { margin: 0; font-size: 24px; }
+        .score { font-size: 40px; color: #ffeb3b; }
+    </style>
+</head>
+<body>
+
+<div id="container">
+    <div id="ui">
+        <h1>手指切泡泡</h1>
+        <div class="score">得分: <span id="scoreVal">0</span></div>
+    </div>
+    <video id="input_video"></video>
+    <canvas id="output_canvas"></canvas>
+</div>
+
+<script>
+    const videoElement = document.getElementById('input_video');
+    const canvasElement = document.getElementById('output_canvas');
+    const canvasCtx = canvasElement.getContext('2d');
+    const scoreElement = document.getElementById('scoreVal');
+
+    let score = 0;
+    let bubble = { x: Math.random(), y: Math.random(), r: 30, color: '#00d2ff' };
+
+    function initCanvas() {
+        canvasElement.width = window.innerWidth * 0.8;
+        canvasElement.height = window.innerHeight * 0.8;
+    }
+    window.onresize = initCanvas;
+    initCanvas();
+
+    function onResults(results) {
+        // 1. 繪製攝影機影像
+        canvasCtx.save();
+        canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+        canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+
+        // 2. 繪製泡泡
+        canvasCtx.beginPath();
+        canvasCtx.arc(bubble.x * canvasElement.width, bubble.y * canvasElement.height, bubble.r, 0, 2 * Math.PI);
+        canvasCtx.fillStyle = bubble.color;
+        canvasCtx.fill();
+        canvasCtx.strokeStyle = "white";
+        canvasCtx.lineWidth = 3;
+        canvasCtx.stroke();
+
+        // 3. 偵測手部關鍵點
+        if (results.multiHandLandmarks) {
+            for (const landmarks of results.multiHandLandmarks) {
+                // 畫出骨架圖 (可選)
+                drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {color: '#00FF00', lineWidth: 5});
+                drawLandmarks(canvasCtx, landmarks, {color: '#FF0000', lineWidth: 2});
+
+                // 取得食指指尖 (第 8 號點)
+                const indexFingerTip = landmarks[8];
+                const ix = indexFingerTip.x * canvasElement.width;
+                const iy = indexFingerTip.y * canvasElement.height;
+
+                // 4. 碰撞偵測 (食指與泡泡距離)
+                const bx = bubble.x * canvasElement.width;
+                const by = bubble.y * canvasElement.height;
+                const dist = Math.hypot(ix - bx, iy - by);
+
+                if (dist < bubble.r + 10) {
+                    score += 10;
+                    scoreElement.innerText = score;
+                    respawnBubble();
+                }
+            }
+        }
+        canvasCtx.restore();
+    }
+
+    function respawnBubble() {
+        bubble.x = Math.random() * 0.8 + 0.1;
+        bubble.y = Math.random() * 0.8 + 0.1;
+        bubble.color = `hsl(${Math.random() * 360}, 70%, 60%)`;
+    }
+
+    const hands = new Hands({
+        locateFile: (file) => `https://jsdelivr.net{file}`
+    });
+
+    hands.setOptions({
+        maxNumHands: 1,
+        modelComplexity: 1,
+        minDetectionConfidence: 0.5,
+        minTrackingConfidence: 0.5
+    });
+
+    hands.onResults(onResults);
+
+    const camera = new Camera(videoElement, {
+        onFrame: async () => {
+            await hands.send({image: videoElement});
+        },
+        width: 1280,
+        height: 720
+    });
+    camera.start();
+</script>
+
+</body>
+</html>
